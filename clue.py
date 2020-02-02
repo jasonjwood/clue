@@ -1,1 +1,7 @@
-hi there more words
+
+
+def main():
+    print("hiya")
+
+
+main()
