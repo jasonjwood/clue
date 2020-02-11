@@ -1,3 +1,4 @@
-alex,draco,impedimenta,trophy
-tai,umbridge,vanishing,doda
-jason,lucius,impedimenta,doda
+active_player,suspect,weapon,room,who_showed_card,card_shown
+alex,draco,impedimenta,trophy, tai,
+tai,umbridge,vanishing,doda,jason,umbridge
+jason,lucius,impedimenta,doda,alex,lucius
