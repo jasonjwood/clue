@@ -1,4 +1,5 @@
 import csv
+import json
 
 players = {}
 my_name = ''
@@ -34,7 +35,7 @@ def add_card_to_knowledge(card, player, knowledge_type):
     cards[card]['knowledge'][player] = knowledge_type
 
     for other in players:
-        if other['name'] != player:
+        if other != player:
             cards[card]['knowledge'][other] = 'cannot_have'
 
 
@@ -44,7 +45,7 @@ def does_player_hold_card(card, player):
 
 def could_player_hold_card(card, player):
     # Return no if the player specifically can't have that card
-    if cards[card]['knowledge'][player] == 'cannot_have':
+    if cards[card]['knowledge'].get(player) == 'cannot_have':
         return False
 
     return True
@@ -59,12 +60,12 @@ def main():
         for player in players_txt:
             name = player.rstrip('\n')
 
-            if first_name is None:
+            if first_name is '':
                 first_name = name
 
-            players[name] = {'name':name, 'next_player':''}
+            players[name] = {'name': name, 'next_player': ''}
 
-            if previous_name is not None:
+            if previous_name is not '':
                 players[previous_name]['next_player'] = name
 
             previous_name = name
@@ -98,35 +99,47 @@ def main():
             print('Guess: ')
             print(guess)
 
+            # Validate that the guessed elements are in our list of cards,
+            assert(len(cards.get(guess['suspect'])) > 0)
+            assert(len(cards.get(guess['weapon'])) > 0)
+            assert(len(cards.get(guess['location'])) > 0)
+            if len(guess.get('card_shown')) > 0:
+                assert (len(cards.get(guess['card_shown'])) > 0)
+
             # If we know which card was shown and who showed it, then add that to knowledge
-            if 'card_shown' in guess:
+            if len(guess.get('card_shown')) > 0:
+                # Validate that the card we just saw doesn't violate all of our logic so far.
+                assert(could_player_hold_card(guess['card_shown'], guess['who_showed_card']))
+
                 print('We just saw a card')
                 add_card_to_knowledge(guess['card_shown'], guess['who_showed_card'], 'has')
 
             # If we know 2 cards guessed could not be held by the person who showed the card, then infer what was shown
-            cannot_have_suspect = could_player_hold_card(guess['suspect'], guess['who_showed_card'])
-            cannot_have_weapon = could_player_hold_card(guess['weapon'], guess['who_showed_card'])
-            cannot_have_location = could_player_hold_card(guess['location'], guess['who_showed_card'])
+            could_have_suspect = could_player_hold_card(guess['suspect'], guess['who_showed_card'])
+            could_have_weapon = could_player_hold_card(guess['weapon'], guess['who_showed_card'])
+            could_have_location = could_player_hold_card(guess['location'], guess['who_showed_card'])
 
-            if cannot_have_weapon and cannot_have_suspect and cannot_have_location:
+            if not could_have_weapon and not could_have_suspect and not could_have_location:
                 raise ValueError('Someone showed a card, but I do not see how they could have it')
 
-            if cannot_have_suspect and cannot_have_weapon:
+            if not could_have_suspect and not could_have_weapon:
                 print(guess['who_showed_card'] + ' must have shown ' + guess['location'])
                 add_card_to_knowledge(guess['location'], guess['who_showed_card'], 'has')
-            elif cannot_have_suspect and cannot_have_location:
+            elif not could_have_suspect and not could_have_location:
                 print(guess['who_showed_card'] + ' must have shown ' + guess['weapon'])
                 add_card_to_knowledge(guess['weapon'], guess['who_showed_card'], 'has')
-            elif cannot_have_weapon and cannot_have_location:
+            elif not could_have_weapon and not could_have_location:
                 print(guess['who_showed_card'] + ' must have shown ' + guess['suspect'])
                 add_card_to_knowledge(guess['suspect'], guess['who_showed_card'], 'has')
 
             # If someone can't show a card, we know they don't have it
 
+            print("CARDS:")
+            print(json.dumps(cards, indent=1))
 
-            #TEST THE CASES I'VE WRITTEN SO FAR
 
-            #COMMIT
+
+                        #COMMIT
 
             #REFACTOR FUNCTIONS OUT OF MAIN
 
