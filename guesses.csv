@@ -1,4 +1,5 @@
-active_player,suspect,weapon,room,who_showed_card,card_shown
-alex,draco,impedimenta,trophy, tai,
-tai,umbridge,vanishing,doda,jason,umbridge
-jason,lucius,impedimenta,doda,alex,lucius
+active_player,suspect,weapon,location,who_showed_card,card_shown
+alex,draco,cabinet,trophy,tai,
+tai,umbridge,cabinet,doda,jason,umbridge
+jason,lucius,impedimenta,doda,alex,impedimenta
+alex,umbridge,mandrake,trophy,jason,umbridge
