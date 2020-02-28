@@ -5,6 +5,10 @@ players = {}
 my_name = ''
 solution = {}
 
+card_indexes = ['draco', 'crabbe', 'lucius', 'umbridge', 'pettigrew', 'bellatrix', 'draught', 'cabinet', 'portkey',
+                'impedimenta', 'petrificus', 'mandrake', 'hall', 'hospital', 'ror', 'potions', 'trophy', 'divination',
+                'owlery', 'library', 'doda']
+
 # Initialize knowledge store
 cards = {'draco': {'type': 'suspect', 'knowledge': {}},
          'crabbe': {'type': 'suspect', 'knowledge': {}},
@@ -30,6 +34,25 @@ cards = {'draco': {'type': 'suspect', 'knowledge': {}},
          }
 
 
+def write_card_knowledge():
+    with open('knowledge.csv', mode='w') as knowledge_csv:
+        header = 'Card,'
+        for player in players:
+            header = header + player + ","
+        knowledge_csv.write(header + '\n')
+
+        for c in card_indexes:
+            line = c + ',' \
+
+            for player in players:
+                if cards[c]['knowledge'].get(player) is None:
+                    line = line + '?,'
+                else:
+                    line = line + cards[c]['knowledge'][player] + ','
+
+            knowledge_csv.write(line + '\n')
+
+
 def add_card_to_knowledge(card, player, knowledge_type):
     print('We now know that ' + player + ' ' + knowledge_type + ' ' + card)
     cards[card]['knowledge'][player] = knowledge_type
@@ -51,8 +74,7 @@ def could_player_hold_card(card, player):
     return True
 
 
-def main():
-    # Read csv file representing player names
+def read_player_names():
     global players
     with open('players.txt', mode='r') as players_txt:
         previous_name = ''
@@ -72,19 +94,17 @@ def main():
 
         players[previous_name]['next_player'] = first_name
 
-
-
-
     print('Players: ')
     print(players)
 
-    # Read my cards and update knowledge
+
+def read_my_cards():
     global my_name
     with open('mycards.txt', mode='r') as my_cards_txt:
         for card in my_cards_txt:
             card = card.rstrip('\n')
             # first row is my name
-            if my_name == '': 
+            if my_name == '':
                 my_name = card
             else:
                 add_card_to_knowledge(card, my_name, 'has')
@@ -92,60 +112,80 @@ def main():
     print('Cards:')
     print(cards)
 
+
+def logic_we_saw_a_card(card_was_shown, card_shown, who_showed_card):
+    if card_was_shown:
+        # Validate that the card we just saw doesn't violate all of our logic so far.
+        assert (could_player_hold_card(card_shown, who_showed_card))
+
+        print('We just saw a card')
+        add_card_to_knowledge(card_shown, who_showed_card, 'has')
+
+
+def logic_must_have_card_shown(guess_suspect, guess_weapon, guess_location, guess_who_showed_card):
+    could_have_suspect = could_player_hold_card(guess_suspect, guess_who_showed_card)
+    could_have_weapon = could_player_hold_card(guess_weapon, guess_who_showed_card)
+    could_have_location = could_player_hold_card(guess_location, guess_who_showed_card)
+
+    if not could_have_weapon and not could_have_suspect and not could_have_location:
+        raise ValueError('Someone showed a card, but I do not see how they could have it')
+
+    if not could_have_suspect and not could_have_weapon:
+        print(guess_who_showed_card + ' must have shown ' + guess_location)
+        add_card_to_knowledge(guess_location, guess_who_showed_card, 'has')
+    elif not could_have_suspect and not could_have_location:
+        print(guess_who_showed_card + ' must have shown ' + guess_weapon)
+        add_card_to_knowledge(guess_weapon, guess_who_showed_card, 'has')
+    elif not could_have_weapon and not could_have_location:
+        print(guess_who_showed_card + ' must have shown ' + guess_suspect)
+        add_card_to_knowledge(guess_suspect, guess_who_showed_card, 'has')
+
+
+def process_guess(guess):
+    print('Guess: ')
+    print(guess)
+
+    # Validate that the guessed elements are in our list of cards,
+    assert (len(cards.get(guess['suspect'])) > 0)
+    assert (len(cards.get(guess['weapon'])) > 0)
+    assert (len(cards.get(guess['location'])) > 0)
+    card_was_shown = False
+    if len(guess.get('card_shown')) > 0:
+        card_was_shown = True
+        assert (len(cards.get(guess['card_shown'])) > 0)
+
+    # If we know which card was shown and who showed it, then add that to knowledge
+    logic_we_saw_a_card(card_was_shown, guess['card_shown'], guess['who_showed_card'])
+
+    # If we know 2 cards guessed could not be held by the person who showed the card, then infer what was shown
+    logic_must_have_card_shown(guess['suspect'], guess['weapon'], guess['location'], guess['who_showed_card'])
+
+    # If someone can't show a card, we know they don't have it
+
+
+def process_guesses():
     # Read csv file representing guesses, building knowledge as we go
     with open('guesses.csv', mode='r') as guesses_csv:
         guess_reader = csv.DictReader(guesses_csv)
         for guess in guess_reader:
-            print('Guess: ')
-            print(guess)
-
-            # Validate that the guessed elements are in our list of cards,
-            assert(len(cards.get(guess['suspect'])) > 0)
-            assert(len(cards.get(guess['weapon'])) > 0)
-            assert(len(cards.get(guess['location'])) > 0)
-            if len(guess.get('card_shown')) > 0:
-                assert (len(cards.get(guess['card_shown'])) > 0)
-
-            # If we know which card was shown and who showed it, then add that to knowledge
-            if len(guess.get('card_shown')) > 0:
-                # Validate that the card we just saw doesn't violate all of our logic so far.
-                assert(could_player_hold_card(guess['card_shown'], guess['who_showed_card']))
-
-                print('We just saw a card')
-                add_card_to_knowledge(guess['card_shown'], guess['who_showed_card'], 'has')
-
-            # If we know 2 cards guessed could not be held by the person who showed the card, then infer what was shown
-            could_have_suspect = could_player_hold_card(guess['suspect'], guess['who_showed_card'])
-            could_have_weapon = could_player_hold_card(guess['weapon'], guess['who_showed_card'])
-            could_have_location = could_player_hold_card(guess['location'], guess['who_showed_card'])
-
-            if not could_have_weapon and not could_have_suspect and not could_have_location:
-                raise ValueError('Someone showed a card, but I do not see how they could have it')
-
-            if not could_have_suspect and not could_have_weapon:
-                print(guess['who_showed_card'] + ' must have shown ' + guess['location'])
-                add_card_to_knowledge(guess['location'], guess['who_showed_card'], 'has')
-            elif not could_have_suspect and not could_have_location:
-                print(guess['who_showed_card'] + ' must have shown ' + guess['weapon'])
-                add_card_to_knowledge(guess['weapon'], guess['who_showed_card'], 'has')
-            elif not could_have_weapon and not could_have_location:
-                print(guess['who_showed_card'] + ' must have shown ' + guess['suspect'])
-                add_card_to_knowledge(guess['suspect'], guess['who_showed_card'], 'has')
-
-            # If someone can't show a card, we know they don't have it
-
-            print("CARDS:")
-            print(json.dumps(cards, indent=1))
+            process_guess(guess)
 
 
+def main():
+    read_player_names()
+    read_my_cards()
 
-                        #COMMIT
+    process_guesses()
 
-            #REFACTOR FUNCTIONS OUT OF MAIN
+    write_card_knowledge()
 
-            #ADD ADDITIONAL CASES
-
-
+    print("CARDS:")
+    print(json.dumps(cards, indent=1))
 
 
 main()
+
+
+# GENERATE MORE HELPFUL OUTPUT
+
+# ADD ADDITIONAL CASES
